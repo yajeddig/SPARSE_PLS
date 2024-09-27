@@ -1,8 +1,9 @@
 import numpy as np
+import pandas as pd 
 from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
 from sklearn.utils.validation import check_is_fitted, check_array, check_X_y
 from sklearn.model_selection import KFold
-from scipy.linalg import pinv2
+from scipy.linalg import pinv
 from preprocessing import DataPreprocessor
 
 
@@ -56,12 +57,13 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
 
         n_samples, n_features = X.shape
         n_targets = Y.shape[1] if Y.ndim > 1 else 1
-
+    
         # Prétraitement
         if self.scale:
             self._x_scaler = DataPreprocessor(method=self.scale_method, **self.scaler_kwargs)
             self._y_scaler = DataPreprocessor(method=self.scale_method, **self.scaler_kwargs)
             X = self._x_scaler.fit_transform(X)
+            Y = Y.reshape(-1, 1)
             Y = self._y_scaler.fit_transform(Y)
         else:
             self._x_scaler = None
@@ -109,7 +111,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
             Y_residual -= np.outer(t, q)
 
         # Calcul des coefficients de régression
-        self.coef_ = self.x_weights_ @ pinv2(self.x_loadings_.T @ self.x_weights_) @ self.y_loadings_.T
+        self.coef_ = self.x_weights_ @ pinv(self.x_loadings_.T @ self.x_weights_) @ self.y_loadings_.T
 
         # Sélection des variables
         self.selected_variables_ = self._get_selected_variables()

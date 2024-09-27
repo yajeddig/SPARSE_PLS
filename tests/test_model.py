@@ -1,9 +1,15 @@
+import sys
+import os
+
+# Ajouter le répertoire parent au chemin de recherche
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 import pytest
 import numpy as np
 import pandas as pd
 from sklearn.datasets import make_regression
 from numpy.testing import assert_array_almost_equal
-from sparse_pls.model import SparsePLS
+from model import SparsePLS
 
 @pytest.fixture
 def data():

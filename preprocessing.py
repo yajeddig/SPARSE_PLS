@@ -78,3 +78,6 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
             return X
         else:
             return np.array(X)
+
+    def inverse_transform(self, X):
+            return self.scaler.inverse_transform(X)
