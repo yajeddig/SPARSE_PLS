@@ -4,3 +4,5 @@ __pycache__/preprocessing.cpython-312.pyc
 tests/__pycache__/test_model.cpython-312-pytest-8.3.3.pyc
 tests/__pycache__/test_model.cpython-312-pytest-8.3.3.pyc
 tests/__pycache__/test_model.cpython-312-pytest-8.3.3.pyc
+__pycache__
+.pytest_cache
