@@ -1,17 +1,21 @@
 import numpy as np
-import pandas as pd 
-from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
-from sklearn.utils.validation import check_is_fitted, check_array, check_X_y
+import pandas as pd
+from sklearn.base import BaseEstimator, RegressorMixin, clone
+from sklearn.utils.validation import check_is_fitted, check_array
 from sklearn.model_selection import ParameterGrid
 from scipy.linalg import pinv
 from preprocessing import DataPreprocessor
+from joblib import Parallel, delayed
+from sklearn.model_selection import check_cv
+from sklearn.metrics import check_scoring
+from sklearn.base import is_classifier
 
 
-class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
+class SparsePLS(BaseEstimator, RegressorMixin):
     """
     Sparse Partial Least Squares (Sparse PLS) Regression.
 
-    The SparsePLS class implements a Sparse Partial Least Squares regression model,
+    The `SparsePLS` class implements a Sparse Partial Least Squares regression model,
     which is a dimensionality reduction technique that incorporates sparsity (variable selection)
     into the Partial Least Squares (PLS) regression.
 
@@ -78,6 +82,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
 
     def __init__(self, n_components=2, alpha=1.0, max_iter=500, tol=1e-6,
                  scale=True, scale_method='standard', **kwargs):
+        # Initialize model parameters
         self.n_components = n_components
         self.alpha = alpha
         self.max_iter = max_iter
@@ -103,14 +108,22 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
         self : object
             Returns the instance itself.
         """
-        # Preserve column names if X is a DataFrame
-        if isinstance(X, pd.DataFrame):
-            self.feature_names_in_ = X.columns
-        else:
-            self.feature_names_in_ = None
+        # Validate input data and set feature_names_in_
+        X, Y = self._validate_data(
+            X, Y,
+            accept_sparse=False,
+            dtype=None,
+            force_all_finite=True,
+            multi_output=True,
+            y_numeric=True,
+            reset=True
+        )
 
-        # Validate input data
-        X, Y = check_X_y(X, Y, multi_output=True, y_numeric=True)
+        # Debug statement to check if feature_names_in_ is set
+        if hasattr(self, 'feature_names_in_'):
+            print("feature_names_in_ is set during fit.")
+        else:
+            print("feature_names_in_ is NOT set during fit.")
 
         n_samples, n_features = X.shape
         n_targets = Y.shape[1] if Y.ndim > 1 else 1
@@ -137,7 +150,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
         self.x_loadings_ = np.zeros((n_features, self.n_components))
         self.y_loadings_ = np.zeros((n_targets, self.n_components))
 
-        # Residual matrices
+        # Residual matrices for deflation
         X_residual = X.copy()
         Y_residual = Y.copy()
 
@@ -145,6 +158,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
         for k in range(self.n_components):
             # Compute one sparse PLS component
             w, c = self._sparse_pls_component(X_residual, Y_residual)
+
             # Compute scores
             t = X_residual @ w
             u = Y_residual @ c
@@ -152,6 +166,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
             # Normalize scores to avoid numerical issues
             t_norm = np.linalg.norm(t)
             if t_norm == 0:
+                # If the norm is zero, break the loop
                 break
             t /= t_norm
             u /= t_norm
@@ -176,7 +191,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
         # Using pseudo-inverse for stability
         self.coef_ = self.x_weights_ @ pinv(self.x_loadings_.T @ self.x_weights_) @ self.y_loadings_.T
 
-        # Select variables
+        # Select variables based on non-zero weights
         self.selected_variables_ = self._get_selected_variables()
 
         return self
@@ -358,7 +373,7 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
             Target values.
 
         param_grid : dict
-            Dictionary with parameters names (`str`) as keys and lists of parameter settings to try as values.
+            Dictionary with parameter names (`str`) as keys and lists of parameter settings to try as values.
 
         cv : int, cross-validation generator or an iterable, default=5
             Determines the cross-validation splitting strategy.
@@ -385,13 +400,8 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
         -----
         The best parameters are stored in the instance attributes and the model is refitted on the entire dataset.
         """
-        from joblib import Parallel, delayed
-        from sklearn.base import is_classifier
-        from sklearn.model_selection import check_cv
-        from sklearn.metrics import check_scoring
-
         # Validate input data
-        X, Y = check_X_y(X, Y, multi_output=True, y_numeric=True)
+        X, Y = self._validate_data(X, Y, multi_output=True, y_numeric=True, reset=False)
         cv = check_cv(cv=cv, y=Y, classifier=is_classifier(self))
         scorer = check_scoring(self, scoring=scoring)
 
@@ -404,9 +414,42 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
                 print(params)
 
         def fit_and_score(params, train_idx, test_idx):
-            # Split data into training and test sets
-            X_train, X_test = X[train_idx], X[test_idx]
-            Y_train, Y_test = Y[train_idx], Y[test_idx]
+            """
+            Fit the model with given parameters and compute the score on the test set.
+
+            Parameters
+            ----------
+            params : dict
+                Parameter settings to try.
+
+            train_idx : array-like
+                Indices for the training set.
+
+            test_idx : array-like
+                Indices for the test set.
+
+            Returns
+            -------
+            score : float
+                Computed score on the test set.
+
+            model : object, optional
+                Trained model instance if `return_models` is True.
+            """
+            # Use .iloc if X and Y are DataFrames/Series
+            if isinstance(X, pd.DataFrame):
+                X_train = X.iloc[train_idx]
+                X_test = X.iloc[test_idx]
+            else:
+                X_train = X[train_idx]
+                X_test = X[test_idx]
+
+            if isinstance(Y, (pd.Series, pd.DataFrame)):
+                Y_train = Y.iloc[train_idx]
+                Y_test = Y.iloc[test_idx]
+            else:
+                Y_train = Y[train_idx]
+                Y_test = Y[test_idx]
 
             # Clone the model with current parameters
             model = clone(self)
@@ -464,6 +507,13 @@ class SparsePLS(BaseEstimator, TransformerMixin, RegressorMixin):
             print(f"Best parameters found: {best_params}")
 
         # Refit on the entire dataset with the best parameters
-        self.fit(X, Y)
+        # Ensure X is a DataFrame with column names
+        if not isinstance(X, pd.DataFrame):
+            # Assuming you have access to the original feature names
+            X = pd.DataFrame(X, columns=self.feature_names_in_)
+        elif X.columns is None or not list(X.columns):
+            # If columns are missing, set them
+            X.columns = self.feature_names_in_
 
+        self.fit(X, Y)
         return self
