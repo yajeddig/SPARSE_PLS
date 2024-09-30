@@ -1,0 +1,14 @@
+LICENSE
+MANIFEST.in
+README.md
+requirements.txt
+setup.py
+documentation/scientific_documentation.md
+documentation/technical_documentation.md
+sparse_pls.egg-info/PKG-INFO
+sparse_pls.egg-info/SOURCES.txt
+sparse_pls.egg-info/dependency_links.txt
+sparse_pls.egg-info/requires.txt
+sparse_pls.egg-info/top_level.txt
+tests/__init__.py
+tests/test_model.py
