@@ -8,7 +8,7 @@ Author-email: younes.ajeddig@live.fr
 Classifier: Programming Language :: Python :: 3.12.4
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: ==3.12.4
+Requires-Python: >=3.7
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy==1.26.4
