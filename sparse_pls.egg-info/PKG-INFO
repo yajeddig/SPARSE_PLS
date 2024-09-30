@@ -2,13 +2,13 @@ Metadata-Version: 2.1
 Name: sparse-pls
 Version: 0.1.0
 Summary: Sparse Partial Least Squares (Sparse PLS) Regression
-Home-page: https://github.com/yourusername/sparse_pls
-Author: Your Name
-Author-email: your.email@example.com
-Classifier: Programming Language :: Python :: 3
+Home-page: https://github.com/yajeddig/SPARSE_PLS
+Author: Younes AJEDDIG
+Author-email: younes.ajeddig@live.fr
+Classifier: Programming Language :: Python :: 3.12.4
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
-Requires-Python: >=3.7
+Requires-Python: ==3.12.4
 Description-Content-Type: text/markdown
 License-File: LICENSE
 Requires-Dist: numpy==1.26.4
