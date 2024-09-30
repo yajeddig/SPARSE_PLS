@@ -26,7 +26,7 @@ setup(
         'License :: OSI Approved :: MIT License',
         'Operating System :: OS Independent',
     ],
-    python_requires='==3.12.4',  # Minimum Python version requirement
+    python_requires='>=3.7',  # Minimum Python version requirement
     package_data={
         '': ['documentation/*.md'],  # Include documentation files
     },
