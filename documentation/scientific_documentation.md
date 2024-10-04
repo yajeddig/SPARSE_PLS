@@ -1,7 +1,3 @@
-Here's the corrected version with proper spacing around mathematical notation:
-
----
-
 # **Sparse Partial Least Squares (Sparse PLS) Regression**
 
 ---
@@ -68,7 +64,9 @@ The inclusion of the $\ell_1$-norm penalties encourages many elements of $\mathb
    $$
    \mathbf{w} \leftarrow \text{SoftThresholding}(\mathbf{X}^\top \mathbf{Y} \mathbf{c}, \alpha),
    $$
+
    followed by normalization:
+
    $$
    \mathbf{w} \leftarrow \frac{\mathbf{w}}{\|\mathbf{w}\|_2}.
    $$
@@ -84,7 +82,9 @@ The inclusion of the $\ell_1$-norm penalties encourages many elements of $\mathb
    $$
    \mathbf{c} \leftarrow \text{SoftThresholding}(\mathbf{Y}^\top \mathbf{t}, \alpha),
    $$
+
    followed by normalization:
+
    $$
    \mathbf{c} \leftarrow \frac{\mathbf{c}}{\|\mathbf{c}\|_2}.
    $$
