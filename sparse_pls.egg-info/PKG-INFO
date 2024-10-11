@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
-Name: sparse-pls
-Version: 0.1.0
+Name: sparse_pls
+Version: 0.1.1
 Summary: Sparse Partial Least Squares (Sparse PLS) Regression
 Home-page: https://github.com/yajeddig/SPARSE_PLS
 Author: Younes AJEDDIG

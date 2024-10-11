@@ -8,3 +8,7 @@ __pycache__
 .pytest_cache
 tests\__pycache__
 .pypirc
+dist/sparse_pls-0.1.1-py3-none-any.whl
+dist/sparse_pls-0.1.1.tar.gz
+sparse_pls.egg-info/PKG-INFO
+sparse_pls.egg-info/PKG-INFO
