@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 
 setup(
     name='sparse_pls',  # Utilisez un underscore au lieu d'un tiret
-    version='0.1.1',  # Mettez à jour le numéro de version
+    version='0.1.2',  # Mettez à jour le numéro de version
     author='Younes AJEDDIG',
     author_email='younes.ajeddig@live.fr',
     description='Sparse Partial Least Squares (Sparse PLS) Regression',

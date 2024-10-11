@@ -11,11 +11,11 @@ Classifier: Operating System :: OS Independent
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
 License-File: LICENSE
-Requires-Dist: numpy==1.26.4
-Requires-Dist: pandas==2.2.2
-Requires-Dist: scikit-learn==1.5.1
-Requires-Dist: scipy==1.13.1
-Requires-Dist: joblib==1.4.2
+Requires-Dist: numpy>=1.20.0
+Requires-Dist: pandas>=1.2.0
+Requires-Dist: scikit-learn>=0.24.0
+Requires-Dist: scipy>=1.6.0
+Requires-Dist: joblib>=1.0.0
 
 # Sparse Partial Least Squares (Sparse PLS) Regression
 
