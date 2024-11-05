@@ -8,7 +8,7 @@ from joblib import Parallel, delayed
 from sklearn.metrics import check_scoring
 from sklearn.base import is_classifier
 import logging
-import scipy.sparse as sp
+import matplotlib.pyplot as plt
 from preprocessing import DataPreprocessor
 
 # Configure logging
@@ -43,35 +43,36 @@ class SparsePLS(BaseEstimator, RegressorMixin):
 
     Attributes
     ----------
-    x_weights_ : ndarray of shape (n_features, n_components)
+    x_weights_ : np.ndarray of shape (n_features, n_components)
         Weights for X.
-    y_weights_ : ndarray of shape (n_targets, n_components)
+    y_weights_ : np.ndarray of shape (n_targets, n_components)
         Weights for Y.
-    x_loadings_ : ndarray of shape (n_features, n_components)
+    x_loadings_ : np.ndarray of shape (n_features, n_components)
         Loadings for X.
-    y_loadings_ : ndarray of shape (n_targets, n_components)
+    y_loadings_ : np.ndarray of shape (n_targets, n_components)
         Loadings for Y.
-    x_scores_ : ndarray of shape (n_samples, n_components)
+    x_scores_ : np.ndarray of shape (n_samples, n_components)
         Scores for X.
-    y_scores_ : ndarray of shape (n_samples, n_components)
+    y_scores_ : np.ndarray of shape (n_samples, n_components)
         Scores for Y.
-    coef_ : ndarray of shape (n_features, n_targets)
+    coef_ : np.ndarray of shape (n_features, n_targets)
         Coefficients of the regression model.
-    selected_variables_ : ndarray of shape (n_selected_variables,)
+    selected_variables_ : np.ndarray of shape (n_selected_variables,)
         Indices of the selected variables.
-    feature_names_in_ : ndarray of shape (n_features,), optional
+    feature_names_in_ : np.ndarray of shape (n_features,), optional
         Feature names seen during fit.
-    cv_results_ : pandas DataFrame
+    cv_results_ : pd.DataFrame
         Cross-validation results, available after calling `optimize_parameters`.
 
     Notes
     -----
-    The algorithm is based on an iterative procedure that alternates between estimating
-    sparse weight vectors for X and Y, and updating scores and loadings.
+    This class supports multi-output regression. When fitting with multiple targets (Y),
+    the model expects Y to be of shape (n_samples, n_targets). The output format of predictions
+    will match the input format of Y.
     """
 
-    def __init__(self, n_components=2, alpha=1.0, max_iter=500, tol=1e-6,
-                 scale=True, scale_method='standard', **kwargs):
+    def __init__(self, n_components: int = 2, alpha: float = 1.0, max_iter: int = 500,
+                 tol: float = 1e-6, scale: bool = True, scale_method: str = 'standard', **kwargs):
         self.n_components = n_components
         self.alpha = alpha
         self.max_iter = max_iter
@@ -80,69 +81,95 @@ class SparsePLS(BaseEstimator, RegressorMixin):
         self.scale_method = scale_method
         self.scaler_kwargs = kwargs
 
-    def score(self, X, y):
+    def score(self, X: np.ndarray, y: np.ndarray) -> float:
         """
         Calculate R² score for the model.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             Test data.
-        y : array-like of shape (n_samples,) or (n_samples, n_targets)
+        y : np.ndarray of shape (n_samples,) or (n_samples, n_targets)
             True values for X.
 
         Returns
         -------
-        score : float
+        float
             R² score.
         """
         from sklearn.metrics import r2_score
         y_pred = self.predict(X)
         return r2_score(y, y_pred)
 
-    def get_feature_importance(self):
+    def get_feature_importance(self) -> np.ndarray:
         """
         Return feature importance based on the absolute sum of weights.
 
         Returns
         -------
-        feature_importance : ndarray of shape (n_features,)
+        np.ndarray of shape (n_features,)
             Importance of each feature.
         """
         return np.sum(np.abs(self.x_weights_), axis=1)
 
-    def plot_weights(self):
+    def plot_weights(self) -> plt.Figure:
         """
         Plot component weights as a heatmap.
 
-        This method visualizes the weights of the components to give insight into
-        feature contributions.
+        Returns
+        -------
+        plt.Figure
+            The figure object for the plot.
         """
-        import matplotlib.pyplot as plt
-        plt.figure(figsize=(10, 6))
-        plt.imshow(self.x_weights_, aspect='auto', cmap='viridis')
-        plt.colorbar()
-        plt.title('Component Weights')
-        plt.xlabel('Components')
-        plt.ylabel('Features')
-        plt.show()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        cax = ax.imshow(self.x_weights_, aspect='auto', cmap='viridis')
+        fig.colorbar(cax)
+        ax.set_title('Component Weights')
+        ax.set_xlabel('Components')
+        ax.set_ylabel('Features')
+        return fig
 
-    def fit(self, X, Y):
+    def plot_selected_features(self) -> plt.Figure:
+        """
+        Visualize the selected features based on non-zero weights.
+
+        Returns
+        -------
+        plt.Figure
+            The figure object for the plot.
+        """
+        fig, ax = plt.subplots()
+        selected_features = self.selected_variables_
+        ax.bar(selected_features, self.get_feature_importance()[selected_features])
+        ax.set_title("Feature Importance of Selected Features")
+        ax.set_xlabel("Feature Index")
+        ax.set_ylabel("Importance")
+        return fig
+
+    def fit(self, X: np.ndarray, Y: np.ndarray) -> 'SparsePLS':
         """
         Fit the Sparse PLS model to the training data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             Training data.
-        Y : array-like of shape (n_samples,) or (n_samples, n_targets)
+        Y : np.ndarray of shape (n_samples,) or (n_samples, n_targets)
             Target values.
 
         Returns
         -------
-        self : object
+        SparsePLS
             Fitted model instance.
+
+        Raises
+        ------
+        ValueError
+            If input data contains missing values.
         """
+        if np.any(pd.isnull(X)) or np.any(pd.isnull(Y)):
+            raise ValueError("Input data X and Y must not contain missing values. Please handle missing data before fitting.")
+
         X, Y = self._validate_data(
             X, Y,
             accept_sparse=False,
@@ -177,7 +204,7 @@ class SparsePLS(BaseEstimator, RegressorMixin):
         Y_residual = Y.copy()
 
         for k in range(self.n_components):
-            w, c = self._sparse_pls_component(X_residual, Y_residual)
+            w, c = self._compute_sparse_pls_component(X_residual, Y_residual)
 
             t = X_residual @ w
             u = Y_residual @ c
@@ -208,23 +235,21 @@ class SparsePLS(BaseEstimator, RegressorMixin):
 
         return self
 
-    def _sparse_pls_component(self, X, Y):
+    def _compute_sparse_pls_component(self, X: np.ndarray, Y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """
         Compute one sparse PLS component.
 
         Parameters
         ----------
-        X : ndarray of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             Residual matrix of X.
-        Y : ndarray of shape (n_samples, n_targets)
+        Y : np.ndarray of shape (n_samples, n_targets)
             Residual matrix of Y.
 
         Returns
         -------
-        w : ndarray of shape (n_features, 1)
-            Weight vector for X.
-        c : ndarray of shape (n_targets, 1)
-            Weight vector for Y.
+        tuple[np.ndarray, np.ndarray]
+            Weight vectors for X and Y.
         """
         n_features = X.shape[1]
         n_targets = Y.shape[1] if Y.ndim > 1 else 1
@@ -249,97 +274,99 @@ class SparsePLS(BaseEstimator, RegressorMixin):
                 break
             c_new /= np.linalg.norm(c_new)
 
-            if self._check_convergence(w_old, w, self.tol):
-                logger.info(f"Convergence reached at iteration {iteration}")
+            change_in_weights = np.linalg.norm(c_new - c)
+            self._log_iteration_state(iteration, w, c, change_in_weights)
+
+            if change_in_weights < self.tol:
+                logger.info(f"Convergence reached at iteration {iteration}.")
                 break
 
             c = c_new
 
         return w, c
 
-    def _soft_thresholding(self, z, alpha):
+    def _soft_thresholding(self, z: np.ndarray, alpha: float) -> np.ndarray:
         """
         Apply soft thresholding to a vector.
 
         Parameters
         ----------
-        z : ndarray
+        z : np.ndarray
             Input vector.
         alpha : float
             Thresholding parameter.
 
         Returns
         -------
-        z_thresh : ndarray
+        np.ndarray
             Thresholded vector.
         """
         return np.sign(z) * np.maximum(np.abs(z) - alpha, 0)
 
-    def _check_convergence(self, w_old, w_new, tol):
+    def _log_iteration_state(self, iteration: int, w: np.ndarray, c: np.ndarray, change_in_weights: float) -> None:
         """
-        Check if the change in weight vectors is below the specified tolerance.
+        Log the state of the current iteration for debugging.
 
         Parameters
         ----------
-        w_old : ndarray
-            Previous weight vector.
-        w_new : ndarray
-            Current weight vector.
-        tol : float
-            Tolerance for convergence.
-
-        Returns
-        -------
-        bool
-            True if converged, False otherwise.
+        iteration : int
+            Current iteration number.
+        w : np.ndarray
+            Current weight vector for X.
+        c : np.ndarray
+            Current weight vector for Y.
+        change_in_weights : float
+            Change in weights for checking convergence.
         """
-        change = np.linalg.norm(w_new - w_old)
-        return change < tol
+        logger.info(
+            f"Iteration {iteration}: Norm of w = {np.linalg.norm(w):.4f}, "
+            f"Norm of c = {np.linalg.norm(c):.4f}, Change in weights = {change_in_weights:.6f}"
+        )
 
-    def _regularized_pinv(self, X, reg_param=1e-5):
+    def _regularized_pinv(self, X: np.ndarray, reg_param: float = 1e-5) -> np.ndarray:
         """
         Compute the regularized pseudo-inverse of a matrix.
 
         Parameters
         ----------
-        X : ndarray
+        X : np.ndarray
             Matrix to invert.
         reg_param : float
             Regularization parameter.
 
         Returns
         -------
-        X_pinv : ndarray
+        np.ndarray
             Regularized pseudo-inverse of X.
         """
         U, S, Vt = svd(X, full_matrices=False)
         S_inv = np.array([1/(s + reg_param) for s in S])
         return (Vt.T @ np.diag(S_inv) @ U.T)
 
-    def _get_selected_variables(self):
+    def _get_selected_variables(self) -> np.ndarray:
         """
         Identify the indices of variables with non-zero weights.
 
         Returns
         -------
-        selected_vars : ndarray of shape (n_selected_variables,)
+        np.ndarray of shape (n_selected_variables,)
             Indices of the selected variables.
         """
         non_zero_weights = np.any(self.x_weights_ != 0, axis=1)
         return np.where(non_zero_weights)[0]
 
-    def transform(self, X):
+    def transform(self, X: np.ndarray) -> np.ndarray:
         """
         Apply the dimensionality reduction learned on the training data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             New data.
 
         Returns
         -------
-        X_scores : ndarray of shape (n_samples, n_components)
+        np.ndarray of shape (n_samples, n_components)
             Transformed data.
         """
         check_is_fitted(self)
@@ -348,37 +375,37 @@ class SparsePLS(BaseEstimator, RegressorMixin):
             X = self._x_scaler.transform(X)
         return X @ self.x_weights_
 
-    def fit_transform(self, X, Y):
+    def fit_transform(self, X: np.ndarray, Y: np.ndarray) -> np.ndarray:
         """
         Fit the model to X and Y and apply the dimensionality reduction on X.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             Training data.
-        Y : array-like of shape (n_samples,) or (n_samples, n_targets)
+        Y : np.ndarray of shape (n_samples,) or (n_samples, n_targets)
             Target values.
 
         Returns
         -------
-        X_scores : ndarray of shape (n_samples, n_components)
+        np.ndarray of shape (n_samples, n_components)
             Transformed data.
         """
         self.fit(X, Y)
         return self.x_scores_
 
-    def predict(self, X):
+    def predict(self, X: np.ndarray) -> np.ndarray:
         """
         Predict target values for new data.
 
         Parameters
         ----------
-        X : array-like of shape (n_samples, n_features)
+        X : np.ndarray of shape (n_samples, n_features)
             Samples.
 
         Returns
         -------
-        Y_pred : ndarray of shape (n_samples,) or (n_samples, n_targets)
+        np.ndarray of shape (n_samples,) or (n_samples, n_targets)
             Predicted target values.
         """
         check_is_fitted(self)
@@ -391,128 +418,3 @@ class SparsePLS(BaseEstimator, RegressorMixin):
             Y_pred = self._y_scaler.inverse_transform(Y_pred)
             Y_pred = Y_pred.ravel() if Y_pred.shape[1] == 1 else Y_pred
         return Y_pred
-
-    def optimize_parameters(self, X, Y, param_grid, cv=5, scoring='neg_mean_squared_error',
-                            n_jobs=1, verbose=0, return_models=False):
-        """
-        Optimize hyperparameters using cross-validation.
-
-        Parameters
-        ----------
-        X : array-like of shape (n_samples, n_features)
-            Training data.
-        Y : array-like of shape (n_samples,) or (n_samples, n_targets)
-            Target values.
-        param_grid : dict
-            Dictionary with parameter names (`str`) as keys and lists of parameter settings to try as values.
-        cv : int, cross-validation generator or an iterable, default=5
-            Determines the cross-validation splitting strategy.
-        scoring : str, callable or None, default='neg_mean_squared_error'
-            A string (see model evaluation documentation) or a scorer callable object/function with signature
-            ``scorer(estimator, X, y)``.
-        n_jobs : int, default=1
-            Number of jobs to run in parallel. ``-1`` means using all processors.
-        verbose : int, default=0
-            Controls the verbosity: the higher, the more messages.
-        return_models : bool, default=False
-            Whether to store the models trained for each parameter combination.
-
-        Returns
-        -------
-        self : object
-            Returns the instance itself with the best parameters found.
-
-        Notes
-        -----
-        The best parameters are stored in the instance attributes and the model is refitted on the entire dataset.
-        """
-        X, Y = self._validate_data(X, Y, multi_output=True, y_numeric=True, reset=False)
-        cv = check_cv(cv=cv, y=Y, classifier=is_classifier(self))
-        scorer = check_scoring(self, scoring=scoring)
-
-        param_list = list(ParameterGrid(param_grid))
-        results = []
-
-        def fit_and_score(params, train_idx, test_idx):
-            if isinstance(X, pd.DataFrame):
-                X_train = X.iloc[train_idx]
-                X_test = X.iloc[test_idx]
-            else:
-                X_train = X[train_idx]
-                X_test = X[test_idx]
-
-            if isinstance(Y, (pd.Series, pd.DataFrame)):
-                Y_train = Y.iloc[train_idx]
-                Y_test = Y.iloc[test_idx]
-            else:
-                Y_train = Y[train_idx]
-                Y_test = Y[test_idx]
-
-            model = clone(self)
-            model.set_params(**params)
-            model.fit(X_train, Y_train)
-            Y_pred = model.predict(X_test)
-            score = scorer(model, X_test, Y_test)
-            return score, model if return_models else None
-
-        for params in param_list:
-            splits = list(cv.split(X, Y))
-            parallel = Parallel(n_jobs=n_jobs, verbose=verbose)
-            scores_models = parallel(
-                delayed(fit_and_score)(params, train_idx, test_idx)
-                for train_idx, test_idx in splits
-            )
-            scores = [sm[0] for sm in scores_models]
-            models = [sm[1] for sm in scores_models] if return_models else None
-
-            mean_score = np.mean(scores)
-            std_score = np.std(scores)
-            result = {
-                'params': params,
-                'mean_score': mean_score,
-                'std_score': std_score,
-                'scores': scores
-            }
-            if return_models:
-                result['models'] = models
-
-            results.append(result)
-
-        self.cv_results_ = pd.DataFrame(results)
-        best_result = max(results, key=lambda x: x['mean_score'])
-        best_params = best_result['params']
-        self.set_params(**best_params)
-
-        if verbose > 0:
-            logger.info(f"Best parameters found: {best_params}")
-
-        self.fit(X, Y)
-        return self
-
-    def plot_convergence(self, convergence_history):
-        """
-        Plot convergence of the weight vectors during the iterative process.
-
-        Parameters
-        ----------
-        convergence_history : list of float
-            History of changes in weight norms.
-        """
-        import matplotlib.pyplot as plt
-        plt.plot(convergence_history)
-        plt.title("Convergence of Weight Norms")
-        plt.xlabel("Iteration")
-        plt.ylabel("Change in Norm")
-        plt.show()
-
-    def plot_selected_features(self):
-        """
-        Visualize the selected features based on non-zero weights.
-        """
-        import matplotlib.pyplot as plt
-        selected_features = self.selected_variables_
-        plt.bar(selected_features, self.get_feature_importance()[selected_features])
-        plt.title("Feature Importance of Selected Features")
-        plt.xlabel("Feature Index")
-        plt.ylabel("Importance")
-        plt.show()
