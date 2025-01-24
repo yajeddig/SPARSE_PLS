@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import pickle
 from sklearn.base import BaseEstimator, RegressorMixin, clone
 from sklearn.utils.validation import check_is_fitted, check_array
 from sklearn.model_selection import ParameterGrid, check_cv
@@ -418,3 +419,53 @@ class SparsePLS(BaseEstimator, RegressorMixin):
             Y_pred = self._y_scaler.inverse_transform(Y_pred)
             Y_pred = Y_pred.ravel() if Y_pred.shape[1] == 1 else Y_pred
         return Y_pred
+    
+    def use_estimator(self, X: np.ndarray) -> np.ndarray:
+        """
+        Apply the trained estimator to new data and obtain predictions.
+
+        Parameters
+        ----------
+        X : np.ndarray of shape (n_samples, n_features)
+            Input data.
+
+        Returns
+        -------
+        np.ndarray of shape (n_samples,) or (n_samples, n_targets)
+            Predicted target values.
+        """
+        return self.predict(X)
+
+    def export_estimator(self, filepath: str, format: str = 'pickle') -> None:
+        """
+        Export the trained estimator to a file.
+
+        Parameters
+        ----------
+        filepath : str
+            Path where the model should be saved.
+        format : str, default='pickle'
+            Format to save the model. Currently supports 'pickle'.
+        """
+        if format == 'pickle':
+            with open(filepath, 'wb') as f:
+                pickle.dump(self, f)
+            logger.info(f"Model saved successfully at {filepath}")
+        else:
+            raise ValueError("Unsupported format. Only 'pickle' is currently supported.")
+        
+    def get_selected_feature_names(self) -> list:
+        """
+        Retrieve the names or indices of the most relevant selected features.
+
+        Returns
+        -------
+        list
+            List of selected feature names if available, otherwise feature indices.
+        """
+        check_is_fitted(self, "selected_variables_")
+
+        if hasattr(self, "feature_names_in_"):
+            return [self.feature_names_in_[i] for i in self.selected_variables_]
+        else:
+            return list(self.selected_variables_)
