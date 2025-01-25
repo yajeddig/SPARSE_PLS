@@ -465,7 +465,10 @@ class SparsePLS(BaseEstimator, RegressorMixin):
         """
         check_is_fitted(self, "selected_variables_")
 
-        if hasattr(self, "feature_names_in_"):
-            return [self.feature_names_in_[i] for i in self.selected_variables_]
+        if hasattr(self, "feature_names_in_") and self.feature_names_in_ is not None:
+            # Ensure valid indices before retrieving names
+            return [str(self.feature_names_in_[i]) for i in self.selected_variables_ if i < len(self.feature_names_in_)]
         else:
-            return list(self.selected_variables_)
+            # Ensure indices are returned as Python int
+            return [int(i) for i in self.selected_variables_]
+
