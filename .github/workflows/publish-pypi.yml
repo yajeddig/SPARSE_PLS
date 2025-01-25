@@ -1,0 +1,38 @@
+name: Publish to PyPI
+
+on:
+  # Déclenchement automatique dès qu'il y a un push sur la branche main
+  push:
+    branches: [ "main" ]
+  # Permet de déclencher manuellement depuis l'onglet "Actions" de GitHub
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
+
+      - name: Install build tools
+        run: |
+          pip install --upgrade pip
+          pip install build twine
+
+      - name: Build the package
+        run: |
+          python -m build
+
+      - name: Publish to PyPI
+        # On ne publie que si les étapes précédentes ont réussi
+        if: success()
+        env:
+          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          twine upload dist/*
