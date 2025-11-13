@@ -5,4 +5,5 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from .model import SparsePLS
 from .preprocessing import DataPreprocessor
 
+__version__ = '0.1.2'
 __all__ = ['SparsePLS', 'DataPreprocessor']
