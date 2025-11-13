@@ -472,3 +472,152 @@ class SparsePLS(BaseEstimator, RegressorMixin):
             # Ensure indices are returned as Python int
             return [int(i) for i in self.selected_variables_]
 
+    def optimize_parameters(self, X: np.ndarray, Y: np.ndarray, param_grid: dict,
+                          cv: int = 5, scoring: str = 'neg_mean_squared_error',
+                          n_jobs: int = 1, verbose: int = 0,
+                          return_models: bool = False) -> 'SparsePLS':
+        """
+        Optimize hyperparameters using cross-validation.
+
+        Parameters
+        ----------
+        X : np.ndarray of shape (n_samples, n_features)
+            Training data.
+        Y : np.ndarray of shape (n_samples,) or (n_samples, n_targets)
+            Target values.
+        param_grid : dict
+            Dictionary with parameters names (str) as keys and lists of parameter
+            settings to try as values.
+        cv : int or cross-validation generator, default=5
+            Determines the cross-validation splitting strategy.
+        scoring : str or callable, default='neg_mean_squared_error'
+            Strategy to evaluate the performance of the cross-validated model.
+        n_jobs : int, default=1
+            Number of jobs to run in parallel. -1 means using all processors.
+        verbose : int, default=0
+            Controls the verbosity: the higher, the more messages.
+        return_models : bool, default=False
+            If True, stores all trained models in cv_results_.
+
+        Returns
+        -------
+        self : SparsePLS
+            Estimator fitted with the best found parameters.
+
+        Notes
+        -----
+        This method performs an exhaustive search over specified parameter values
+        using cross-validation. The results are stored in the `cv_results_` attribute
+        as a pandas DataFrame. The model is then refitted on the entire dataset
+        using the best parameters found.
+        """
+        from sklearn.model_selection import cross_val_score
+
+        # Validate inputs
+        X, Y = check_array(X, accept_sparse=False, dtype=None, force_all_finite=True), \
+               check_array(Y, accept_sparse=False, dtype=None, force_all_finite=True, ensure_2d=False)
+
+        # Create parameter grid
+        param_combinations = list(ParameterGrid(param_grid))
+
+        # Validate scoring
+        scorer = check_scoring(self, scoring=scoring)
+
+        # Validate cv
+        cv_splitter = check_cv(cv, Y, classifier=is_classifier(self))
+
+        # Storage for results
+        results = []
+        trained_models = [] if return_models else None
+
+        def evaluate_params(params):
+            """Evaluate a single parameter combination."""
+            # Clone the model with new parameters
+            model = clone(self)
+            model.set_params(**params)
+
+            # Perform cross-validation
+            scores = cross_val_score(
+                model, X, Y,
+                cv=cv_splitter,
+                scoring=scorer,
+                n_jobs=1  # Parallel at param level, not CV level
+            )
+
+            # Fit model on full data for this parameter set
+            model.fit(X, Y)
+
+            result = {
+                'params': params,
+                'mean_score': scores.mean(),
+                'std_score': scores.std(),
+                'scores': scores
+            }
+
+            if return_models:
+                result['model'] = model
+
+            return result
+
+        # Parallel evaluation of parameter combinations
+        if verbose > 0:
+            logger.info(f"Fitting {len(param_combinations)} parameter combinations across {cv} folds...")
+
+        if n_jobs == 1:
+            # Sequential execution
+            for i, params in enumerate(param_combinations):
+                if verbose > 0:
+                    logger.info(f"[{i+1}/{len(param_combinations)}] Evaluating: {params}")
+                result = evaluate_params(params)
+                results.append(result)
+                if return_models:
+                    trained_models.append(result['model'])
+        else:
+            # Parallel execution
+            parallel_results = Parallel(n_jobs=n_jobs, verbose=verbose)(
+                delayed(evaluate_params)(params) for params in param_combinations
+            )
+            results = parallel_results
+            if return_models:
+                trained_models = [r['model'] for r in results]
+
+        # Create results DataFrame
+        cv_results_data = {
+            'params': [r['params'] for r in results],
+            'mean_score': [r['mean_score'] for r in results],
+            'std_score': [r['std_score'] for r in results],
+        }
+
+        # Add individual parameter columns
+        for param_name in param_grid.keys():
+            cv_results_data[f'param_{param_name}'] = [r['params'].get(param_name) for r in results]
+
+        # Add detailed scores if requested
+        if verbose > 1:
+            for i, r in enumerate(results):
+                cv_results_data[f'split{i}_score'] = [res['scores'][i] if i < len(res['scores']) else np.nan for res in results]
+
+        self.cv_results_ = pd.DataFrame(cv_results_data)
+
+        if return_models:
+            self.cv_results_['model'] = trained_models
+
+        # Find best parameters
+        best_idx = np.argmax([r['mean_score'] for r in results])
+        best_params = results[best_idx]['params']
+        best_score = results[best_idx]['mean_score']
+
+        if verbose > 0:
+            logger.info(f"Best parameters: {best_params}")
+            logger.info(f"Best cross-validation score: {best_score:.4f}")
+
+        # Set best parameters and refit on entire dataset
+        self.set_params(**best_params)
+        self.fit(X, Y)
+
+        # Store best parameters info
+        self.best_params_ = best_params
+        self.best_score_ = best_score
+
+        return self
+

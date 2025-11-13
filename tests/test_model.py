@@ -200,3 +200,42 @@ def test_get_selected_feature_names(data: Tuple[ndarray, DataFrame, ndarray, Lis
     assert all(isinstance(f, (str, int)) for f in selected_features), (
         f"Feature names/indices should be str or int, got: {selected_features}"
     )
+
+def test_optimize_parameters(data: Tuple[ndarray, DataFrame, ndarray, List[str]]) -> None:
+    """
+    Test hyperparameter optimization using cross-validation.
+    """
+    X_np, _, y, _ = data
+    model = SparsePLS(n_components=2, alpha=0.5)
+
+    param_grid = {
+        'n_components': [1, 2],
+        'alpha': [0.1, 0.5]
+    }
+
+    # Run optimization
+    model.optimize_parameters(
+        X_np, y,
+        param_grid=param_grid,
+        cv=3,
+        scoring='neg_mean_squared_error',
+        n_jobs=1,
+        verbose=0
+    )
+
+    # Check that cv_results_ was created
+    assert hasattr(model, 'cv_results_'), "cv_results_ attribute not created."
+    assert isinstance(model.cv_results_, pd.DataFrame), "cv_results_ should be a DataFrame."
+    assert len(model.cv_results_) == 4, "Should have 4 parameter combinations (2x2)."
+
+    # Check that best parameters were stored
+    assert hasattr(model, 'best_params_'), "best_params_ attribute not created."
+    assert hasattr(model, 'best_score_'), "best_score_ attribute not created."
+    assert isinstance(model.best_params_, dict), "best_params_ should be a dict."
+
+    # Check that model was refitted with best parameters
+    assert hasattr(model, 'coef_'), "Model should be fitted after optimization."
+
+    # Verify model can make predictions
+    y_pred = model.predict(X_np)
+    assert y_pred.shape == y.shape, "Prediction shape mismatch after optimization."
