@@ -1,21 +1,47 @@
 name: Publish to PyPI
 
+# Déclenchement sur création de tags de version (ex: v0.1.3, v1.0.0)
 on:
-  # Déclenchement automatique dès qu'il y a un push sur la branche main
   push:
-    branches: [ "main" ]
-  # Permet de déclencher manuellement depuis l'onglet "Actions" de GitHub
+    tags:
+      - 'v*.*.*'
+  # Permet le déclenchement manuel
   workflow_dispatch:
 
 jobs:
-  build-and-publish:
+  # Job 1: Exécuter les tests avant publication
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest matplotlib
+
+      - name: Run tests
+        run: |
+          python -m pytest tests/ -v
+
+  # Job 2: Build et publish (seulement si les tests passent)
+  build-and-publish:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
@@ -24,15 +50,51 @@ jobs:
           pip install --upgrade pip
           pip install build twine
 
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          # Extraire la version du tag (ex: v0.1.3 -> 0.1.3)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
+
+      - name: Update version in setup.py
+        run: |
+          VERSION=${{ steps.get_version.outputs.version }}
+          sed -i "s/version='[^']*'/version='$VERSION'/" setup.py
+          echo "Updated setup.py with version $VERSION"
+
       - name: Build the package
         run: |
           python -m build
 
-      - name: Publish to PyPI
-        # On ne publie que si les étapes précédentes ont réussi
-        if: success()
-        env:
-          TWINE_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          TWINE_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      - name: Check package with twine
         run: |
-          twine upload dist/*
+          twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          twine upload dist/* --skip-existing
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ steps.get_version.outputs.version }}
+          body: |
+            ## What's Changed
+            See the [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ## Installation
+            ```bash
+            pip install sparse-pls==${{ steps.get_version.outputs.version }}
+            ```
+          draft: false
+          prerelease: false
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
