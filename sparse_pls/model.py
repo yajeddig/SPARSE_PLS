@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pickle
+from typing import Tuple
 from sklearn.base import BaseEstimator, RegressorMixin, clone
 from sklearn.utils.validation import check_is_fitted, check_array, check_X_y
 from sklearn.model_selection import ParameterGrid, check_cv
@@ -268,7 +269,7 @@ class SparsePLS(BaseEstimator, RegressorMixin):
 
     def _compute_sparse_pls_component(
         self, X: np.ndarray, Y: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Compute one sparse PLS component.
 
@@ -281,7 +282,7 @@ class SparsePLS(BaseEstimator, RegressorMixin):
 
         Returns
         -------
-        tuple[np.ndarray, np.ndarray]
+        Tuple[np.ndarray, np.ndarray]
             Weight vectors for X and Y.
         """
         n_features = X.shape[1]
