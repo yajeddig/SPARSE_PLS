@@ -1,5 +1,11 @@
 # Sparse Partial Least Squares (Sparse PLS) Regression
 
+[![PyPI version](https://badge.fury.io/py/sparse-pls.svg)](https://pypi.org/project/sparse-pls/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/sparse-pls.svg)](https://pypi.org/project/sparse-pls/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/yajeddig/SPARSE_PLS/actions/workflows/test.yml/badge.svg)](https://github.com/yajeddig/SPARSE_PLS/actions/workflows/test.yml)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/sparse-pls.svg)](https://pypi.org/project/sparse-pls/)
+
 ---
 
 ## Introduction
@@ -35,16 +41,19 @@ The **Sparse Partial Least Squares (Sparse PLS)** project implements a regressio
 
 ## Installation
 
-To install the required packages, you can use the following command:
+### From PyPI (Recommended)
 
 ```bash
-pip install -r requirements.txt
+pip install sparse-pls
 ```
 
-Alternatively, you can install the packages individually:
+### From Source (Development)
 
 ```bash
-pip install numpy pandas scikit-learn scipy joblib
+git clone https://github.com/yajeddig/SPARSE_PLS.git
+cd SPARSE_PLS
+pip install -r requirements.txt
+pip install -e .
 ```
 
 ---
@@ -210,17 +219,45 @@ Where:
 
 ---
 
-## Contributing
+## Development & Contributing
 
-We welcome contributions to improve the Sparse PLS project. If you'd like to contribute, please follow these steps:
+### Contributing
 
-1. **Fork the Repository**: Create a fork of this repository to your GitHub account.
-2. **Clone the Fork**: Clone your forked repository to your local machine.
-3. **Create a Feature Branch**: Create a new branch for your feature or bug fix.
-4. **Make Changes**: Implement your changes and ensure that the code is well-documented.
-5. **Test Your Changes**: Run existing tests and add new ones if necessary.
-6. **Commit and Push**: Commit your changes and push them to your fork.
-7. **Submit a Pull Request**: Open a pull request to the main repository with a clear description of your changes.
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed instructions on:
+- Setting up your development environment
+- Code style and standards
+- Running tests
+- Submitting pull requests
+
+### Running Tests
+
+```bash
+# Install test dependencies
+pip install pytest pytest-cov matplotlib
+
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=sparse_pls --cov-report=html
+```
+
+### Release Process
+
+For maintainers: See [RELEASE_GUIDE.md](RELEASE_GUIDE.md) for detailed release instructions.
+
+**Quick release:**
+```bash
+./release.sh patch  # For bug fixes (0.1.2 → 0.1.3)
+./release.sh minor  # For new features (0.1.2 → 0.2.0)
+./release.sh major  # For breaking changes (0.1.2 → 1.0.0)
+```
+
+The release script automatically:
+- Updates version numbers
+- Updates CHANGELOG.md
+- Creates a git tag
+- Triggers GitHub Actions to publish to PyPI
 
 ---
 

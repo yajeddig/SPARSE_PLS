@@ -5,6 +5,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.preprocessing import StandardScaler, RobustScaler, QuantileTransformer
 from sklearn.impute import SimpleImputer
 
+
 class DataPreprocessor(BaseEstimator, TransformerMixin):
     """
     Data Preprocessor that supports multiple scaling methods and stops processing when NaN values are detected.
@@ -45,14 +46,16 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
     >>> X_scaled = preprocessor.fit_transform(X)
     """
 
-    def __init__(self, method='standard', impute_strategy=None, **kwargs):
+    def __init__(self, method="standard", impute_strategy=None, **kwargs):
         self.method = method
         self.impute_strategy = impute_strategy
-        self.kwargs = {k: v for k, v in kwargs.items() if k not in ['impute_strategy']}  # Filter out unwanted kwargs
+        self.kwargs = {
+            k: v for k, v in kwargs.items() if k not in ["impute_strategy"]
+        }  # Filter out unwanted kwargs
         self.scaler = None
         self.imputer = None
 
-    def fit(self, X: np.ndarray, y: None = None) -> 'DataPreprocessor':
+    def fit(self, X: np.ndarray, y: None = None) -> "DataPreprocessor":
         """
         Fit the scaler to the data and check for NaN values.
         """
@@ -62,7 +65,9 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
             self.imputer = SimpleImputer(strategy=self.impute_strategy)
             X = self.imputer.fit_transform(X)
         elif np.isnan(X.data if sparse.issparse(X) else X).any():
-            raise ValueError("Input data contains NaN values. Please handle missing data or set `impute_strategy`.")
+            raise ValueError(
+                "Input data contains NaN values. Please handle missing data or set `impute_strategy`."
+            )
 
         self.scaler = self._get_scaler()
         self.scaler.fit(X)
@@ -83,7 +88,9 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
             X = self.imputer.transform(X)
 
         if np.isnan(X.data if sparse.issparse(X) else X).any():
-            raise ValueError("Input data contains NaN values. Transformation cannot proceed.")
+            raise ValueError(
+                "Input data contains NaN values. Transformation cannot proceed."
+            )
 
         X_scaled = self.scaler.transform(X)
 
@@ -130,20 +137,22 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
         Return the appropriate scaler instance based on the method.
         """
         if isinstance(self.method, str):
-            if self.method == 'standard':
+            if self.method == "standard":
                 return StandardScaler(**self.kwargs)
-            elif self.method == 'robust':
+            elif self.method == "robust":
                 return RobustScaler(**self.kwargs)
-            elif self.method == 'quantile_uniform':
-                return QuantileTransformer(output_distribution='uniform', **self.kwargs)
-            elif self.method == 'quantile_normal':
-                return QuantileTransformer(output_distribution='normal', **self.kwargs)
+            elif self.method == "quantile_uniform":
+                return QuantileTransformer(output_distribution="uniform", **self.kwargs)
+            elif self.method == "quantile_normal":
+                return QuantileTransformer(output_distribution="normal", **self.kwargs)
             else:
                 raise ValueError(f"Unknown scaling method: {self.method}.")
-        elif hasattr(self.method, 'fit') and hasattr(self.method, 'transform'):
+        elif hasattr(self.method, "fit") and hasattr(self.method, "transform"):
             return self.method
         else:
-            raise ValueError("The provided method must be a string or a valid scaler object.")
+            raise ValueError(
+                "The provided method must be a string or a valid scaler object."
+            )
 
     def _validate_data(self, X) -> np.ndarray:
         """
@@ -151,7 +160,9 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
         """
         if sparse.issparse(X):
             if not np.issubdtype(X.dtype, np.number):
-                raise ValueError("All elements in the sparse input array must be numeric.")
+                raise ValueError(
+                    "All elements in the sparse input array must be numeric."
+                )
             return X
 
         if isinstance(X, pd.DataFrame):
@@ -165,5 +176,7 @@ class DataPreprocessor(BaseEstimator, TransformerMixin):
         else:
             X = np.array(X)
             if not np.issubdtype(X.dtype, np.number):
-                raise ValueError("All elements in the input array-like structure must be numeric.")
+                raise ValueError(
+                    "All elements in the input array-like structure must be numeric."
+                )
             return X
