@@ -8,6 +8,11 @@ on:
   # Permet le déclenchement manuel
   workflow_dispatch:
 
+# Required permissions for PyPI publishing and GitHub releases
+permissions:
+  contents: write  # Required to create GitHub releases
+  id-token: write  # Required for trusted publishing to PyPI
+
 jobs:
   # Job 1: Exécuter les tests avant publication
   test:
